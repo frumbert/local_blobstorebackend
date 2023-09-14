@@ -2,6 +2,8 @@
 
 This is a Moodle local plugin that provides an endpoint for Rise/Storyline courses to send and receieve JSON data to. When it is not present on Moodle, a fallback external service provides the same. This means the interactions should still work when used on Review or even within the Rise editor.
 
+![screenshot](assets/screenshot.png)
+
 ## reason
 
   Storyline in Rise interactions don't get stored anywhere by RISE (not implemented by Articulate) so we need to store them ourselves.
