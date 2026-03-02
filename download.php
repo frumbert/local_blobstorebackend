@@ -29,6 +29,7 @@ $hash = optional_param('hash', null, PARAM_TEXT);
 $filename = optional_param('filename', null, PARAM_TEXT);
 
 if (empty($hash)) {
+  http_response_code(400);
   die('No hash provided');
 }
 
@@ -36,6 +37,7 @@ if (empty($hash)) {
 $file = $CFG->dataroot . DIRECTORY_SEPARATOR . 'blobstorebackend' . DIRECTORY_SEPARATOR . $hash . '.pdf';
 
 if (!file_exists($file)) {
+  http_response_code(404);
   die('File not found');
 }
 
