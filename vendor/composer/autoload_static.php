@@ -49,6 +49,10 @@ class ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002
         ),
     );
 
+    public static $fallbackDirsPsr4 = array (
+        0 => __DIR__ . '/../..' . '/lib',
+    );
+
     public static $prefixesPsr0 = array (
         'P' => 
         array (
@@ -69,6 +73,7 @@ class ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002::$prefixDirsPsr4;
+            $loader->fallbackDirsPsr4 = ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002::$fallbackDirsPsr4;
             $loader->prefixesPsr0 = ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002::$prefixesPsr0;
             $loader->classMap = ComposerStaticInit747468cf43f3c450a02c88ff8c4f6002::$classMap;
 
