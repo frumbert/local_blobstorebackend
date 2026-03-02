@@ -15,25 +15,29 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version details
+ * blobstore backend - link to report page for admins
  *
- * @package    local
- * @subpackage blobstorebackend
- * @copyright  tim.stclair@gmail.com
+ * @package    local_blobstorebackend
+ * @copyright  2025 Tim St Clair
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-$string['pluginname'] = 'blobstorebackend';
-$string['description'] = 'Data store for Rise/Storyline javascript hacks';
+defined('MOODLE_INTERNAL') || die;
 
-$string['privacy:metadata'] = 'The blobstorebackend filter does not store any personally identifiable data (user-specific data is abstracted or hashed).';
+if ($hassiteconfig) {
+    global $CFG;
 
-$string['selectcourse'] = 'Select a course';
-$string['selectscormcourse'] = 'Courses SCORM activities';
-$string['reportheader'] = 'Report on inputs';
-$string['name'] = 'BlobStore backend';
-$string['adminreport'] = 'Blobstore Backend Reports';
-$string['userreport'] = 'User Inputs Report';
+    $settings = new admin_settingpage('local_blobstorebackend', get_string('adminreport','local_blobstorebackend'));
+    $ADMIN->add('localplugins', $settings);
 
-$string['clean_blobstore'] = 'Clean blobstore data folder';
+    $settings->add(new admin_setting_heading(
+        'local_blobstorebackend/hyperlink',
+        get_string('report'), // Title of the setting
+        html_writer::link(
+            new moodle_url('/local/blobstorebackend/report.php'), // URL of the hyperlink
+            get_string('userreport','local_blobstorebackend'), // Text for the hyperlink
+            []
+        )
+    ));
+
+}

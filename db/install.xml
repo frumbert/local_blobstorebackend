@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/blobstorebackend/db" VERSION="20240101" COMMENT="Moodle blobstorebackend plugin"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="http://moodle.org/xmldb/xmldb.xsd"
+>
+  <TABLES>
+  <TABLE NAME="blobstorebackend" COMMENT="Stores blob data with context information">
+    <FIELDS>
+    <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true" />
+    <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="User ID" />
+    <FIELD NAME="context1" TYPE="char" LENGTH="255" NOTNULL="false" COMMENT="Context field 1" />
+    <FIELD NAME="context2" TYPE="char" LENGTH="255" NOTNULL="true" COMMENT="Context field 2" />
+    <FIELD NAME="context3" TYPE="char" LENGTH="255" NOTNULL="true" COMMENT="Context field 3" />
+    <FIELD NAME="context4" TYPE="char" LENGTH="255" NOTNULL="true" COMMENT="Context field 4" />
+    <FIELD NAME="data" TYPE="longtext" NOTNULL="false" COMMENT="JSON data storage" />
+    <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Time created" />
+    </FIELDS>
+    <KEYS>
+    <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+    </KEYS>
+    <INDEXES>
+    <INDEX NAME="context1" UNIQUE="false" FIELDS="context1" />
+    <INDEX NAME="userid_idx" UNIQUE="false" FIELDS="userid" />
+    </INDEXES>
+  </TABLE>
+  </TABLES>
+</XMLDB>

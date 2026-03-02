@@ -1,8 +1,5 @@
 <?php
-
-// handy for when you don't have xdebug
 // ini_set ('display_errors', 1); ini_set ('display_startup_errors', 1); error_reporting (E_ALL);
-
 // This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -33,194 +30,52 @@
   This plugin provides a simple REST API to store and retrieve the responses, and a method for the learner to compile their notes to a formatted PDF file.
   A separate plugin may be created to display the notes to the teacher.
 
-  We use a file-based structure and iterate through the filesystem to find the relevant files on demand.
-  This could be changed to use a database and file store and be aligned to the user, etc
-  The current structure is:
-  $CFG->dataroot (moodle data folder)
-    /blobstorebackend (hard coded folder name used only by this plugin)
-      /context (course id)
-        /block (id assigned by RISE when adding an interaction)
-          /user (base64 encoded concatenated learner name and username)
-            db.json (the actual response, which includes the course name, the page name, the question and the answer)
+  There are various mechanisms to read/write this data.
+
+  1. a Storyline embed inside Rise course
+    - uses HEAD, OPTIONS, GET and PUT
+  2. riseSCORMBridge
+    - uses OPTIONS, POST, GET
+    - GET /local/blobstorebackend/some-hash-value.html
+    - POST to /local/blobstorebackend/generate
+    - POST to /local/blobstorebackend/view
+    - POST to /local/blobstorebackend/download (not fully implemented)
+
 */
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Authorization, Content-Type, Cache-Control, X-Requested-With");
-header("Access-Control-Allow-Methods: GET, PUT, HEAD, OPTIONS");
+header("Access-Control-Allow-Methods: GET, PUT, HEAD, POST, OPTIONS");
 
 require_once("../../config.php");
 require_once("./vendor/autoload.php");
+require_once("./locallib.php");
 
-use Dompdf\Dompdf;
+// common variables
+$method       = local_blobstorebackend_get_method();
+$data         = local_blobstorebackend_get_request_data();
+$publicurl    = local_blobstorebackend_get_publicurl();
+$salt         = $CFG->passwordsaltmain;
+$url          = $data['url'] ?? '';
+list($digest,$context,$block,$key) = array_pad(explode('/', rtrim($url, '/')), 4, null);
 
-// no we aren't really using the moodle methods
-// this merges GET, POST and PUT fields together into one object
-function get_request_data () {
-  return array_merge(empty($_POST) ? array() : $_POST, (array) json_decode(file_get_contents('php://input'), true), $_GET);
-}
-
-// We'll want to know if the method is GET, PUT, HEAD or OPTIONS
-function get_method () {
-  return $_SERVER['REQUEST_METHOD'];
-}
-
-// We'll want to know the public url for the download.php script
-function get_publicurl () {
-  return $_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST'] . '/local/blobstorebackend/download.php';
-}
-
-// send a http response with the appropriate headers
-function send_response ($response, $code = 200) {
-  header("Content-Type: application/json");
-  http_response_code($code);
-  if (is_array($response)) {
-    $response = (object) $response;
-  }
-  die(json_encode($response));
-}
-
-// get the path to the blobstore
-// this could be a config setting, but it's easier to hardcode it
-function get_db() {
-  global $CFG;
-  return $CFG->dataroot . DIRECTORY_SEPARATOR . 'blobstorebackend' . DIRECTORY_SEPARATOR;
-}
-
-// when compiling the responses, we want to group them by page, and filter them to the specified user
-function CollateResponses($user,$context) {
-  $ordered = [];
-  // recurse through the filesystem to find all files for matching users
-  $db = get_db() ."{$context}";
-  $blocks = array_diff(scandir($db), array('..', '.'));
-  $pages = [];
-  foreach ($blocks as $index => $block) {
-    $file = $db . DIRECTORY_SEPARATOR . $block . DIRECTORY_SEPARATOR . $user . DIRECTORY_SEPARATOR .'db.json';
-    if (file_exists($file)) {
-      $pages[] = (array) json_decode(file_get_contents($file));
-    }
-  }
-  $ordered = [];
-  foreach ($pages as $value) {
-      $page = $value['page'];
-      unset($value['page']);
-      $ordered[$page][] = $value;
-  }
-
-  return $ordered;
-}
-
-// Dompdf does the heavy lifting here, which can convert HTML to PDF, handle page breaks, etc
-// The PDF is converted from HTML, which can contain CSS2 styles, images, etc
-class pdfExporter {
-  protected $user;
-  protected $context;
-  protected $template;
-
-  function __construct($user, $context) {
-    $this->user = $user;
-    $this->context = $context;
-    $this->template = file_get_contents('./assets/template.html');
-  }
-
-  public function GetCourseName() {
-    $notes = CollateResponses($this->user,$this->context);
-    foreach ($notes as $page => $notes) {
-      return $notes[0]['course']; // stored in each page
-    }
-  }
-
-  public function Export($filename) {
-    $dompdf = new Dompdf();
-    $parsedown = new Parsedown();
-    $notes = CollateResponses($this->user,$this->context);
-
-    $title = $this->GetCourseName();
-
-    // inject the notes into the template. Using markdown for simpicity, could be avoided
-    $md = [];
-    foreach ($notes as $page => $notes) {
-      $md[] = "## {$page}\n";
-      foreach ($notes as $note) {
-        $md[] = "**{$note['question']}**\n";
-        $md[] = $note['answer'] . "\n";
-      }
-      $md[] = "---\n";
-    }
-    $md = implode("\n", $md);
-    $this->template = str_replace('{{title}}', $title, $this->template);
-    $this->template = str_replace('{{notes}}', $parsedown->text($md), $this->template);
-
-    $dompdf->loadHtml($this->template);
-    $dompdf->setPaper('A4', 'portrait');
-    $dompdf->render();
-
-    // store the result in a location that the downloader can access
-    $db = get_db();
-    file_put_contents("{$db}{$filename}.pdf", $dompdf->output());
-  }
-}
-
-// after calling the download script, call this to clean up older generated pdfs
-function CleanDownloads() {
-  $x = 1 * 60 * 60; // 1 hour
-  $current_time = time();
-  $db = get_db();
-  $files = glob($db . DIRECTORY_SEPARATOR . '*.pdf');
-  foreach ($files as $file) {
-    if (is_file($file)) {
-      if ($current_time - filemtime($file) >= $x) {
-        unlink($file);
-      }
-    }
-  }
-}
-
-// some helper variables
-$headers = getallheaders();
-$method = get_method();
-$data = get_request_data();
-$publicurl = get_publicurl();
-$salt = $CFG->passwordsaltmain;
-
-// that's all we need for CORS
-if ($method == "OPTIONS") die();
-
-// check the authorization header is valid 
-if (!isset($headers['Authorization'])) {
-    send_response(array('error' => "I'm a teapot"), 418); // Garbage in, garbage out
-}
-
-// quick check to see if the source is recognised
-$thishost = md5(strtolower($_SERVER['REQUEST_SCHEME'].'://'.$_SERVER['HTTP_HOST']));
-if ($thishost !== $headers['Authorization']) {
-    send_response(array('error' => 'Unauthorized'), 401);
-}
-
-// that's all we need for testing the plugin's existence
-if ($method == "HEAD") die();
-
-// extract variables from the url (simple routing via htaccess)
-$url = $data['url'] ?? null;
-list($digest,$context,$block) = explode('/', $url);
-
-if (empty($digest) || empty($context) || empty($block)) {
-  send_response(array('error' => 'Malformed request', 'data' => $data), 400);
-}
-
-$db = get_db() . "{$context}/{$block}/{$digest}";
-
-// $user = base64_decode(strtr($digest, '._-', '+/='));
-// PROD - salt the earth to ensure abstraction in case of disk compromise
-// $digest = sha1($digest.$salt);
-// $context = sha1($context.$salt);
-
+// router
 switch ($method) {
-  case "GET":
-    switch ($block) {
-      case "cleanup":
-        CleanDownloads();
-      break;
+  case "OPTIONS": /* ----------------- METHOD ----------------------- */
+  case "HEAD": /* ----------------- METHOD ----------------------- */
+    die();
+    break;
 
+  case "GET": /* ----------------- METHOD ----------------------- */
+    if (str_ends_with($_SERVER['REQUEST_URI'], '.html')) {
+      if ($contents = local_blobstorebackend_get_html($url)) {
+        die($contents);
+      }
+    }
+    local_blobstorebackend_check_authorization();
+    if ($digest == "dl") $block = "zip"; // possibly used by riseSCORMbridge downloader
+    switch ($block) { // why is it block?
+      case "cleanup": break; // handled in cron
       case "download":
         $pdf = new pdfExporter($digest,$context);
         $filename = md5($courseName.time().$salt);
@@ -229,38 +84,79 @@ switch ($method) {
         $result = new stdClass();
         $result->link = "{$publicurl}?hash={$filename}&filename={$courseName}.pdf";
         $result->filename = $courseName . '.pdf';
-        send_response($result);
+        local_blobstorebackend_send_response($result);
       break;
 
       case "collate":
-          $results = CollateResponses($key,$course);
-          send_response(['success' => true, 'records' => $results]);
+          $results = local_blobstorebackend_CollateResponses($key,$course);
+          local_blobstorebackend_send_response(['success' => true, 'records' => $results]);
       break;
 
       default:
-        if (!file_exists("{$db}/db.json")) {
-          send_response(array('success' => false), 404); // on initial load, the path & file won't exist
+        $data = local_blobstorebackend_get_data($context,$block,$digest,$key);
+        if (!$data) {
+          local_blobstorebackend_send_response(array('success' => false), 404);
         }
-        $data = file_get_contents("{$db}/db.json");
-        send_response(json_decode($data));
+        // $data->success = true;
+        $response = json_decode($data->data ?: "{}");
+        if (isset($response->url)) unset($response->url);
+        local_blobstorebackend_send_response($response);
     }
-  break;
+    break;
 
-  case "PUT":
-    if (!file_exists($db)) { // create the directory if it doesn't exist
-      mkdir($db, 0775, true);
+  case "PUT": /* ----------------- METHOD ----------------------- */
+    local_blobstorebackend_check_authorization();
+    unset($data['url']);
+    local_blobstorebackend_set_data($data, $context,$block,$digest,$key); // data is php://input
+    local_blobstorebackend_send_response(array('success' => true));
+    break;
+
+  case "POST": /* ----------------- METHOD ----------------------- */
+    if (empty($digest)) { //  || empty($context) || empty($block))
+      local_blobstorebackend_send_response(array('error' => 'Malformed request', 'data' => $data), 400);
     }
-    unset($data['context']); // this is already in the db path
-    unset($data['url']); // this was just for routing, we don't need it in the db
-    file_put_contents("{$db}/db.json", json_encode($data));
-    send_response(array(
-      'success' => true,
-      // 'value' => $data, // useful for debugging
-      // 'db' => $db // only for debugging, exposes server paths
-    ));
-  break;
+
+    $phpinput     = json_decode(file_get_contents("php://input"), true);
+    $extension    = $phpinput['type'] ?? 'html';
+    $course       = $phpinput['course'] ?? '';
+    $learner      = $phpinput['learner'] ?? '';
+    $interaction  = $phpinput['interaction'] ?? '';
+    $content      = $phpinput['content'] ?? '';
+    $question     = $phpinput['question'] ?? '';
+    $key          = $phpinput['key'] ?? '';
+
+    $publicurl = $_SERVER['REQUEST_SCHEME']."://".$_SERVER['HTTP_HOST']."/local/blobstorebackend"; ///{$course}";
+    $hashInput = $course . "|" . $learner . "|" . $interaction . "|" . $key;
+    $hash = substr(hash('sha256', $hashInput), 0, 32); // safe hash
+
+    switch ($digest) {
+      case "generate":
+        if ($extension === "json") {
+          local_blobstorebackend_set_data($content, $hash);
+        } else {
+          $html = "<!DOCTYPE html><html><head><meta charset='UTF-8'>";
+          $html .= "<style>body{font-family:sans-serif;}header{font-style:italic}</style>";
+          $html .= "</head><body><header>" . local_blobstorebackend_Wrap($question) . "</header>";
+          $html .= "<main>" . local_blobstorebackend_Wrap($content) . "</main>";
+          $html .= "</body></html>";
+          local_blobstorebackend_set_data($html, $hash);
+        }
+        local_blobstorebackend_send_response(array("url" => $publicurl . "/{$hash}.{$extension}"));
+      break;
+
+      case "view":
+      // https://rise.frumbert.org/c50d03d51d814082715773fa35fc9c38.html
+      // https://cpd.avant.org.au/local/blobstorebackend/715773fa35fc9c38/c50d03d51d814082715773fa35fc9c38.html
+      if ($record = local_blobstorebackend_get_data($hash)) {
+        $contents = $record->data;
+        header('Content-Type: ' . strpos($content, "<html")===false ? 'application/json' : 'text/html');
+        die($contents);
+      }
+      break;
+    }
+    break;
 
   default:
-    send_response(array('error' => 'Bad method'), 405);
+    local_blobstorebackend_send_response(array('error' => 'Bad method'), 405);
 
 }
