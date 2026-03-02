@@ -1,0 +1,44 @@
+-- storyline / rise / blobstore text object --
+
+Token = md5(location.origin) - matched in index.php
+Access-Control-Allow-Headers: Authorization, Content-Type, Cache-Control, X-Requested-With
+Access-Control-Allow-Methods: GET, PUT, HEAD, POST, OPTIONS
+Access-Control-Allow-Origin: *
+
+
+Authorization: a8a7d3707622a41e0254835efff94f4b
+Content Type: application/json
+PUT /local/blobstorebackend/U3QlMjBDbGFpciUyQyUyMFRpbXRzdGNsYWly/8ee06baa2a1d/cln9k6bqw00ar3b692ufun1of/ HTTP/1.1
+{
+    "course": "Text Entry External",
+    "page": "Intentional vs unintentional boundary breaches",
+    "question": "Take some time to reflect on your own practice. Do you regularly self-reflect and seek feedback from colleagues or supervisors regarding your interactions with patients to ensure you maintain appropriate sexual boundaries?",
+    "answer": "ke some time to reflect on your own practice. Do you regularly self-reflect and seek feedback from colleagues or supervisor"
+}
+RESPONSE
+{
+    "success": true
+}
+
+Authorization: a8a7d3707622a41e0254835efff94f4b
+GET /local/blobstorebackend/U3QlMjBDbGFpciUyQyUyMFRpbXRzdGNsYWly/8ee06baa2a1d/cln9k6bqw00ar3b692ufun1of/ HTTP/1.1
+RESPONSE
+{
+    "course": "Text Entry External",
+    "page": "Intentional vs unintentional boundary breaches",
+    "question": "Take some time to reflect on your own practice. Do you regularly self-reflect and seek feedback from colleagues or supervisors regarding your interactions with patients to ensure you maintain appropriate sexual boundaries?",
+    "answer": "ke some time to reflect on your own practice. Do you regularly self-reflect and seek feedback from colleagues or supervisor"
+}
+
+
+-- mighty / rise / riseSCORMBridge
+
+  window.riseSCORMBridgeConfig = {
+    token: md5(location.origin),
+    serverBase: "https://localhost:3001/local/blobstorebackend",
+    question: "Write a essay of about 300 words on this topic.",
+    mediaAbove: "https://placehold.co/300x100/orange/white/jpg/?text=The+environment.jpg",
+    feedback: "✅ Thanks, i'm sure it was informative.",
+    required: '100w', // 100 = 100 characters; 100w = 100 words; 100l = 100 lines;
+    placeholder: "Enter your essay here. Remember to use a classic essay structure."
+  }
