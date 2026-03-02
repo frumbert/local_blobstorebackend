@@ -25,6 +25,6 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2023091300;        // The current plugin version (Date: YYYYMMDDXX)
+$plugin->version   = 2026021801;        // The current plugin version (Date: YYYYMMDDXX)
 $plugin->requires  = 2016112900;        // Requires this Moodle version
 $plugin->component = 'local_blobstorebackend'; // Full name of the plugin (used for diagnostics)
