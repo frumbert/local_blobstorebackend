@@ -79,8 +79,8 @@ function local_blobstorebackend_get_all_data($context1, $context2 = null, $conte
 
 function local_blobstorebackend_get_html($file) {
   global $DB;
-  $context2 = substr($file, 0, strpos($file, ".")); // .html or .json
-  $record = $DB->get_record('blobstorebackend', ["context2" => $context2] , 'data');
+  $context1 = substr($file, 0, strpos($file, ".")); // .html or .json
+  $record = $DB->get_record('blobstorebackend', ["context1" => $context1] , 'data');
   return $record ? $record->data : '';
 }
 

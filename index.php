@@ -67,7 +67,7 @@ switch ($method) {
     break;
 
   case "GET": /* ----------------- METHOD ----------------------- */
-    if (str_ends_with($_SERVER['REQUEST_URI'], '.html')) {
+    if (str_ends_with($_SERVER['REQUEST_URI'], '.html') || str_ends_with($_SERVER['REQUEST_URI'], '.json'))  {
       if ($contents = local_blobstorebackend_get_html($url)) {
         die($contents);
       }
