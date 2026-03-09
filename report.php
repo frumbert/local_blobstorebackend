@@ -173,7 +173,18 @@ if ($course) {
                             }
                         }
                         if ($has_multiple_scos) $row[] = $scorm->name;
-                        $row[] = $page;
+                        $pagevalue = (empty($download) && $page !== '')
+                            ? html_writer::link(
+                                new moodle_url('/local/blobstorebackend/preview.php', [
+                                    'cmid'  => $scorm->cmid,
+                                    'block' => $record->context2 ?? '',
+                                    'page'  => $page,
+                                ]),
+                                $page,
+                                ['target' => '_cm' .$scorm->cmid]
+                              )
+                            : $page;
+                        $row[] = $pagevalue;
                         $row[] = fullname($user);//  $user->firstname;
                         //$row[] = $user->lastname;
                         $row[] = $user->email;
