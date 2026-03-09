@@ -30,6 +30,7 @@ class course_select_form extends \moodleform {
         // Add a select element for courses.
         $mform->addElement('select', 'courseid', get_string('selectcourse', 'local_blobstorebackend'), $courseoptions);
         $mform->setType('courseid', PARAM_INT);
+        $mform->setDefault('courseid', $this->_customdata['selectedcourseid'] ?? 0);
         $mform->addRule('courseid', null, 'required', null, 'client');
 
         // Add action buttons.
