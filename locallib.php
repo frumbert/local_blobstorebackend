@@ -237,8 +237,7 @@ function local_blobstorebackend_ImportFromDisk() {
           $userstring = urldecode(base64_decode($context3));
           $userstring = rtrim($userstring, '?'); // Remove trailing '?' if it exists.
 
-echo "&middot; " . $userstring, PHP_EOL;
-
+          // echo "&middot; " . $userstring, PHP_EOL;
 
           // Split lastname from the rest of the string.
           $parts = explode(',', $userstring, 2);
