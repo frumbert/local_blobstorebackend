@@ -28,6 +28,7 @@ require_once($CFG->libdir . '/formslib.php');
 require_once($CFG->libdir . '/tablelib.php');
 require_once($CFG->libdir . '/csvlib.class.php');
 require_once(__DIR__ . '/classes/course_select_form.php'); // Form class for course selection.
+require_once(__DIR__ . '/locallib.php');
 
 require_login();
 $context = context_system::instance();
@@ -38,7 +39,9 @@ $selectedcourseid = optional_param('courseid', 0, PARAM_INT); // Get selected co
 $course = null;
 
 $download = optional_param('download', false, PARAM_ALPHAEXT);
-$displayoptions = array();
+$sifirst = optional_param('sifirst', 'all', PARAM_NOTAGS);
+$silast  = optional_param('silast',  'all', PARAM_NOTAGS);
+$displayoptions = ['sifirst' => $sifirst, 'silast' => $silast];
 
 $tsort = optional_param('tsort', 'firstnamelastname', PARAM_ALPHAEXT);
 $tdir = optional_param('tdir', 4, PARAM_INT); // 4 is asc, 3 is desc
@@ -53,7 +56,7 @@ if ($selectedcourseid) {
 
 // Set up the page (this must happen before any output).
 $PAGE->set_context($context);
-$PAGE->set_url('/local/blobstorebackend/report.php', ['courseid' => $selectedcourseid]);
+$PAGE->set_url('/local/blobstorebackend/report.php', ['courseid' => $selectedcourseid, 'sifirst' => $sifirst, 'silast' => $silast]);
 $PAGE->set_title(get_string('reportheader', 'local_blobstorebackend'));
 $PAGE->set_heading(get_string('name', 'local_blobstorebackend'));
 $PAGE->set_pagelayout('admin');
@@ -91,6 +94,21 @@ if ($course) {
 
     $sort_index = array_search($tsort, $columns);
 
+    // do we know the riseid?
+    $riseid = '';
+    foreach (\core_course\customfield\course_handler::create()->get_instance_data($course->id, true) as $field) {
+        $fd = new \core_customfield\output\field_data($field);
+        $name = $fd->get_shortname();
+        $value = $fd->get_value();
+        switch ($name) {
+            case "rise_identity":
+                $riseid = $value;
+                break;
+        }
+    }
+// echo html_writer::tag('h3', 'rise-id=' . $riseid);
+// echo html_writer::empty_tag('hr');
+
     if (empty($download)) {
         $table = new \flexible_table('local-blobstorebackend-report');
 
@@ -105,6 +123,9 @@ if ($course) {
         $table->column_class('page', 'bold');
 
         $table->setup();
+
+        echo $OUTPUT->initials_bar($sifirst, 'firstinitial', get_string('firstname'), 'sifirst', $PAGE->url);
+        echo $OUTPUT->initials_bar($silast,  'lastinitial',  get_string('lastname'),  'silast',  $PAGE->url);
     }
 
     if ($scorms) {
@@ -122,31 +143,22 @@ if ($course) {
             $allnames = \core_user\fields::get_name_fields();
             $enrolledusers = get_enrolled_users(context_course::instance($courseObj->id), '', 0, 'u.id, u.username, u.email, u.department, ' . implode(',', $allnames));
 
-            // do we know the riseid?
-            $riseid = '';
-            foreach ($courseObj->get_custom_fields() as $field) {
-                $fd = new \core_customfield\output\field_data($field);
-                $name = $fd->get_shortname();
-                $value = $fd->get_value();
-                switch ($name) {
-                    case "rise_identity":
-                        $riseid = $value;
-                        break;
-                }
+            // Apply A-Z initial filters.
+            if ($sifirst !== 'all') {
+                $enrolledusers = array_filter($enrolledusers, fn($u) => strtoupper(substr($u->firstname, 0, 1)) === strtoupper($sifirst));
             }
+            if ($silast !== 'all') {
+                $enrolledusers = array_filter($enrolledusers, fn($u) => strtoupper(substr($u->lastname, 0, 1)) === strtoupper($silast));
+            }
+
             $rows = [];
             foreach ($enrolledusers as $user) {
                 // Construct the digest for the user.
                 $digest = blobstoreencoding("{$user->lastname}, {$user->firstname}{$user->username}");
 
-                // the data is all file based, not in sql
-                $db_path = get_db() . "{$riseid}/*/{$digest}/db.json";
-
-                // a globiterator can to a filesystem search with wildcards
-                $it = new GlobIterator( $db_path , FilesystemIterator::KEY_AS_PATHNAME | FilesystemIterator::CURRENT_AS_FILEINFO);
-                while($it->valid()) {
-                    $dbfile = $it->current()->getRealPath();
-                    $userdata = json_decode(file_get_contents($dbfile), true);
+                $records = local_blobstorebackend_get_all_data($riseid, null, $digest);
+                if ($records) foreach ($records as $record) {
+                    $userdata = json_decode($record->data, true);
                     if ($userdata) {
                         $row = [];
                         $page = "";
@@ -171,7 +183,6 @@ if ($course) {
                         // if (empty($download)) $table->add_data($row);
                         $rows[] = $row;
                     }
-                    $it->next();
                 }
             }
         }
