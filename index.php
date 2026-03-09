@@ -57,6 +57,8 @@ $data         = local_blobstorebackend_get_request_data();
 $publicurl    = local_blobstorebackend_get_publicurl();
 $salt         = $CFG->passwordsaltmain;
 $url          = $data['url'] ?? '';
+
+// create other variables from the router
 list($digest,$context,$block,$key) = array_pad(explode('/', rtrim($url, '/')), 4, null);
 
 // router
