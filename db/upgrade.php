@@ -67,10 +67,16 @@ function xmldb_local_blobstorebackend_upgrade($oldversion) {
 
         // blobstorebackend savepoint reached.
         upgrade_plugin_savepoint(true, 2026021801, 'local', 'blobstorebackend');
+	}
 
-        // old data was stored in the filesystem. lets pull that into the database.
-        require_once($CFG->dirroot . '/local/blobstorebackend/locallib.php');
-        local_blobstorebackend_ImportFromDisk();
+    if ($oldversion < 2026030400) {
+
+        // Queue an adhoc task to import old data from the filesystem into the database.
+        require_once($CFG->dirroot . '/local/blobstorebackend/classes/task/import_from_disk.php');
+        $task = new \local_blobstorebackend\task\import_from_disk();
+        \core\task\manager::queue_adhoc_task($task);
+
+        upgrade_plugin_savepoint(true, 2026030400, 'local', 'blobstorebackend');
 
     }
 

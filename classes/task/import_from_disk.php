@@ -8,23 +8,29 @@
 //
 // Moodle is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+
+namespace local_blobstorebackend\task;
 
 /**
- * Version details
+ * Adhoc task to import blobstore data from disk.
  *
- * @package    local
- * @subpackage blobstorebackend
- * @copyright  tim.stclair@gmail.com
+ * @package    local_blobstorebackend
+ * @copyright  2026 YOURNAME
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class import_from_disk extends \core\task\adhoc_task {
 
-defined('MOODLE_INTERNAL') || die();
-
-$plugin->version   = 2026030400;        // The current plugin version (Date: YYYYMMDDXX)
-$plugin->requires  = 2016112900;        // Requires this Moodle version
-$plugin->component = 'local_blobstorebackend'; // Full name of the plugin (used for diagnostics)
+    /**
+     * Run the task.
+     */
+    public function execute() {
+        global $CFG;
+        require_once($CFG->dirroot . '/local/blobstorebackend/locallib.php');
+        local_blobstorebackend_ImportFromDisk();
+    }
+}
